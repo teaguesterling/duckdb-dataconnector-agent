@@ -11,6 +11,20 @@ https://github.com/hasura/sqlite-dataconnector-agent.
 The DuckDB agent currently supports an unknown set of capabilities. 
 It's a direct drop-in replacement for the SQLite agent.
 
+The DuckDB agent currently has tested support the following capabilities:
+
+* [x] GraphQL Schema from Tables
+* [ ] GraphQL Schema from Views or Functions (TODO: killer feature)
+* [x] GraphQL Queries
+* [x] Relationships
+* [x] Aggregations
+* [ ] Prometheus Metrics
+* [ ] Exposing Foreign-Key Information
+* [ ] Mutations
+* [ ] Native (Interpolated) Queries
+* [ ] Subscriptions
+* [ ] Streaming Subscriptions
+
 The SQLite agent currently supports the following capabilities:
 
 * [x] GraphQL Schema
@@ -30,9 +44,7 @@ Note: You are able to get detailed metadata about the agent's capabilities by
 ## Requirements
 
 * NodeJS 16
-* DuckDB `>= 0.10.0` or compiled in JSON support
-    * Required for the json_group_array() and json_group_object() aggregate SQL functions
-    * https://www.sqlite.org/json1.html#jgrouparray
+* DuckDB `>= 0.10.0`
 * Note: NPM is used for the [TS Types for the DC-API protocol](https://www.npmjs.com/package/@hasura/dc-api-types)
 
 ## Build & Run
@@ -59,6 +71,8 @@ echo src/**/*.ts | xargs -n1 echo | DB_READONLY=y entr -r npm run start
 You will want to mount a volume with your database(s) so that they can be referenced in configuration.
 
 ## Options / Environment Variables
+
+These are from the SQLite agent and have not yet been checked for DuckDB
 
 Note: Boolean flags `{FLAG}` can be provided as `1`, `true`, `t`, `yes`, `y`, or omitted and default to `false`.
 
@@ -90,10 +104,19 @@ The agent is configured as per the configuration schema. The valid configuration
 | -------- | ---- | ------- |
 | `db` | `string` | |
 | `tables` | `string[]` | `null` |
+| `init` | `string` | `null` |
 | `include_sqlite_meta_tables` | `boolean` | `false` |
 | `explicit_main_schema` | `boolean` | `false `
 
 The only required property is `db` which specifies a local sqlite database to use.
+
+The `init` property allows specifying a number of SQL statements to run upon initializing a connection. 
+For example:
+`LOAD json; SET file_search_path='/data,/other-data'; SET autoload_known_extensions=false; SET lock_configuration=true;`
+
+Would ensure that the `json` extension is available and files can be referenced relative to `/data` or
+`/other-data` but that no additional extensions or changes can be made to the connecition configuration
+after initialization.
 
 The schema is exposed via introspection, but you can limit which tables are referenced by
 
@@ -137,6 +160,19 @@ From the HGE repo.
 * Using "returning" in insert/update/delete mutations where you join across relationships that are affected by the insert/update/delete mutation itself may return inconsistent results. This is because of this issue with SQLite: https://sqlite.org/forum/forumpost/9470611066
 
 ## TODO
+* [x] Replace SQLite library with DuckDB in `src/db.js`
+* [x] Add ability to provide initialization statements for DuckDB
+* [x] Fix docker container segfaulting when attempting to use the npm-provided duckdb package.
+* [x] Address the absense of `JSON_EACH` from DuckDB
+* [x] Add Duckdb database for testing
+* [ ] Replace parsing of `SQLITE_SCHEMA` with use of the `information_schema` tables for introspection
+* [ ] Expose and enable views in the introspected GraphQL schema
+* [ ] Expose and enable table functions in the introspected GraphQL schema
+* [ ] Replace common `init` values with configuration options
+* [ ] Revise env variables
+* [ ] Re-enable parameterized queries (disabled due to conflicting/weird API differences)
+
+## SQLite TODO (For Reference)
 
 * [x] Prometheus metrics hosted at `/metrics`
 * [x] Pull reference types from a package rather than checked-in files
