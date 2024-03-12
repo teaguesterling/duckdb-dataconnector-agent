@@ -171,6 +171,7 @@ From the HGE repo.
 * [ ] Replace common `init` values with configuration options
 * [ ] Revise env variables
 * [ ] Re-enable parameterized queries (disabled due to conflicting/weird API differences)
+* [ ] Test the un-tested features provided from the SQLite connector
 
 ## SQLite TODO (For Reference)
 
