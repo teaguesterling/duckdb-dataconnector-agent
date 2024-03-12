@@ -12,7 +12,7 @@ While this works for DuckDB datbases and internal tables, it will be most
 valuable if it supports exposing diverse data formats from DuckDB via 
 parsers and views. The goal here would be:
 
-Given this completly contrived DuckDB schema:
+Given this completly contrived DuckDB schema **This doesn't work yet**:
 ```
 CREATE VIEW log AS SELECT timestamp, run_id, status, message FROM '/data/logs/*.json';    
 CREATE VIEW raw_run AS SELECT run_id, instrument_id, field_id, value FROM '/data/raw/*.csv';
