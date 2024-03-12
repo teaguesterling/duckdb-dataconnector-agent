@@ -32,57 +32,33 @@ export async function withConnection<Result>(config: Config, mode: number, sqlLo
     }
   }
 
-  const dbt = new Database(':memory:', {
-      "access_mode": "READ_WRITE",
-      "max_memory": "512MB",
-      "threads": "4"
-  }, (err:any) => {
-    if (err) {
-      console.error(err);
-    }
-  });
-  console.error("Conn:", dbt);
-
-  const x = dbt.all(
-    'SELECT ?::INTEGER AS fortytwo, ?::STRING AS hello', 42, 'Hello, World', 
-    function(err:any, res:any) {
-    if (err) {
-      console.warn("Error", err);
-      return;
-    }
-    console.log("42:", res[0].fortytwo)
-    console.log("hello", res[0].hello)
-  });
-  console.log("Starting");
-
   const db_ = await new Promise<Database>((resolve, reject) => {
     console.log("Connecting to", config.db, "with: ", config.init);
     const params = {"access_mode": "READ_WRITE"};
     const db = new Database(config.db, params, conn_err => {
-      console.log("Connection Result:", conn_err);
       if (conn_err) {
         reject(conn_err);
-      //} else if(config.init) {
-      //  db.exec(config.init, (init_err: any, res: any) => {
-      //    console.log("Init Result:", init_err);
-      //    if(init_err) {
-      //     reject(init_err);
-      //    } else {
-		  //     resolve(db);
-		  //    }
-      //  });
+      } else if(config.init) {
+        console.log("Connection Successful");
+        db.all(config.init, (init_err: any, res: any) => {
+          if(init_err) {
+            console.error("Init Result:", init_err);
+            reject(init_err);
+          } else {
+            console.log("Init Successful");
+            resolve(db);
+		      }
+        });
       } else {
+        console.log("Connection Successful");
         resolve(db);
       }
-      //
     });
-    console.log("Resolving:", db);
-    resolve(db);
   });
-
 
   // NOTE: Avoiding util.promisify as this seems to be causing connection failures.
   const query = (query: string, params?: Record<string, unknown>): Promise<Array<any>> => {
+    console.log("Query", query, params);
     return new Promise((resolve, reject) => {
       /* Pass named params:
        * db.run("UPDATE tbl SET name = $name WHERE id = $id", {
@@ -91,10 +67,15 @@ export async function withConnection<Result>(config: Config, mode: number, sqlLo
        * });
        */
       sqlLogger(query);
-      db_.all(query, params || {}, (err: any, data: any) => {
+      // TODO: all(...) Takes a variable number of parameters for DuckDB
+      // Passing the params object in causes an error
+      //db_.all(query, params || {}, (err: any, data: any) => {
+      db_.all(query, (err: any, data: any) => {
         if (err) {
+          console.error("Query Error", err);
           return reject(err);
         } else {
+          console.log("Received: ", data);
           resolve(data);
         }
       })
@@ -102,10 +83,12 @@ export async function withConnection<Result>(config: Config, mode: number, sqlLo
   }
 
   const exec = (sql: string): Promise<void> => {
+    console.log("Exec:", sql);
     return new Promise((resolve, reject) => {
       sqlLogger(sql);
       db_.exec(sql, (err : any) => {
         if (err) {
+          console.error("Query Error", err);
           reject(err);
         } else {
           resolve();
@@ -127,19 +110,20 @@ export async function withConnection<Result>(config: Config, mode: number, sqlLo
   }
 
   try {
+    console.log("Starting connection");
     return await useConnection({ query, exec, withTransaction });
   }
   finally {
+    console.log("Closing connection");
     await new Promise((resolve, reject) => {
-      db_.close();
-      return;
-      //db_.close((err: any) => {
-      //  if (err) {
-      //    return reject(err);
-      //  } else {
-      //    resolve(true); // What should we resolve with if there's no data to promise?
-      //  }
-      //})
+      try {
+        db_.close();
+      } catch(err) {
+        console.log("Failed to close", err);
+        reject(err);
+        return;
+      }
+      resolve(true);
     });
   }
 }
