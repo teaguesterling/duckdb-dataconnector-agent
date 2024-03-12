@@ -41,18 +41,14 @@ export async function withConnection<Result>(config: Config, mode: number, sqlLo
       if (conn_err) {
         reject(conn_err);
       } else if(config.init) {
-        console.log("Connection Successful");
         db.all(config.init, (init_err: any, res: any) => {
           if(init_err) {
-            console.error("Init Result:", init_err);
             reject(init_err);
           } else {
-            console.log("Init Successful");
             resolve(db);
           }
         });
       } else {
-        console.log("Connection Successful");
         resolve(db);
       }
     });
@@ -77,7 +73,6 @@ export async function withConnection<Result>(config: Config, mode: number, sqlLo
           console.error("Query Error", err);
           return reject(err);
         } else {
-          console.log("Received: ", data);
           resolve(data);
         }
       })
@@ -112,16 +107,13 @@ export async function withConnection<Result>(config: Config, mode: number, sqlLo
   }
 
   try {
-    console.log("Starting connection");
     return await useConnection({ query, exec, withTransaction });
   }
   finally {
-    console.log("Closing connection");
     await new Promise((resolve, reject) => {
       try {
         db_.close();
       } catch(err) {
-        console.log("Failed to close", err);
         reject(err);
         return;
       }
