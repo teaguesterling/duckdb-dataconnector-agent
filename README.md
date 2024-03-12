@@ -6,6 +6,47 @@ It can use local DuckDB database files as referenced by the "db" config field.
 This is a basically a SQLite to DuckDB replacement of 
 https://github.com/hasura/sqlite-dataconnector-agent.
 
+## Aim (This isn't supported yet)
+
+While this works for DuckDB datbases and internal tables, it will be most 
+valuable if it supports exposing diverse data formats from DuckDB via 
+parsers and views. The goal here would be:
+
+Given this completly contrived DuckDB schema:
+```
+CREATE VIEW log AS SELECT timestamp, run_id, status, message FROM '/data/logs/*.json';    
+CREATE VIEW raw_run AS SELECT run_id, instrument_id, field_id, value FROM '/data/raw/*.csv';
+CREATE VIEW historical_statistics AS
+  SELECT field_id, statistic, value
+  FROM read_parquet('/data/pq/*/*.parquet', hive_partitioning=true);
+-- Let's assume instrument is defined in a different external datasource table
+-- Let's also assume filed is defined in a different external datasource table
+```
+
+We would be able to expose it via GraphQL (which will require us to define 
+the relationships manually) to perform some sort of a query like this (again, 
+asusuming instrument is already defined via instrument_id):
+```
+{
+   raw_run {
+      instrument {
+        type
+      }
+      logs(where: {timestamp: {_gt: <SOMETHING>}, status: {_eq: "error"}}) {
+         timestamp
+         message
+      }
+      field {
+        name
+        statistics(where: {statistic: {_eq: "7-day-max"}}) {
+          value
+        }
+      }
+   }
+}
+```
+Alas, until we gew views working, this is just a (fever) dream.
+
 ## Capabilities
 
 The DuckDB agent currently supports an unknown set of capabilities. 
