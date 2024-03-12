@@ -6,6 +6,17 @@ It can use local DuckDB database files as referenced by the "db" config field.
 This is a basically a SQLite to DuckDB replacement of 
 https://github.com/hasura/sqlite-dataconnector-agent.
 
+## Current Status (This does work)
+
+The DuckDB agent is a functioning port of the SQLite DataConnect Agent to
+use DuckDB as a backend instead. Currently, it only works on DuckDB native 
+tables, but provides functionality required for basic read-only usage.
+
+* [x] GraphQL Schema from Tables
+* [x] GraphQL Queries
+* [x] Relationships
+* [x] Aggregations
+
 ## Aim (This isn't supported yet)
 
 While this works for DuckDB datbases and internal tables, it will be most 
