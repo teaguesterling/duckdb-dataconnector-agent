@@ -29,6 +29,7 @@ asusuming instrument is already defined via instrument_id):
 ```
 {
    raw_run {
+      value
       instrument {
         type
       }
