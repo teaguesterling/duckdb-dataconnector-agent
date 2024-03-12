@@ -21,12 +21,13 @@ RUN apk del git make cmake gcc g++ python3
 WORKDIR /app
 COPY package.json .
 COPY package-lock.json .
-RUN npm link /opt/duckdb-node
-RUN cat package.json
-RUN sed -i '/"duckdb":/d' package.json
 
 # If CI fails (which it will), use install instead
 RUN npm ci || npm install
+
+# This is the "hack" to use our locally built version
+RUN npm uninstall duckdb
+RUN npm link /opt/duckdb-node
 
 COPY tsconfig.json .
 COPY src src
