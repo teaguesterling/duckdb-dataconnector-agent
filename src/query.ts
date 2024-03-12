@@ -774,7 +774,7 @@ function query(request: QueryRequest): string {
  *
  * ```
  * SELECT value ->> '$.columnA' AS "columnA", value ->> '$.columnB' AS "columnB"
- * FROM JSON_EACH('[{"columnA":"A1","columnB":"B1"},{"columnA":"A2","columnB":"B2"}]')
+ * FROM UNNEST(json_extract('[{"columnA":"A1","columnB":"B1"},{"columnA":"A2","columnB":"B2"}]', '$[*]')) _json_each(value)
  * ```
  */
 function foreach_ids_table_value(foreachIds: Record<string, ScalarValue>[]): string {
@@ -783,7 +783,15 @@ function foreach_ids_table_value(foreachIds: Record<string, ScalarValue>[]): str
   const columns = columnNames.map(name => `value ->> ${escapeString("$." + name)} AS ${escapeIdentifier(name)}`);
   const jsonData = foreachIds.map(ids => mapObject(ids, ([column, scalarValue]) => [column, scalarValue.value]));
 
-  return tag('foreach_ids_table_value', `SELECT ${columns} FROM JSON_EACH(${escapeString(JSON.stringify(jsonData))})`)
+  //return tag('foreach_ids_table_value', `SELECT ${columns} FROM JSON_EACH(${escapeString(JSON.stringify(jsonData))})`)
+  // There is no JSON_EACH in DuckDB so the SQLite approach doesn't work here
+  // However, `UNNEST(json_extract(..., '$[*]'))` does the same thing
+  // in the way we are using it. It's less complete than the SQLite JSON_EACH
+  // function, but we're not using the other features.
+  //
+  // Naming the resulting column "value" allows the column extractors to work
+  // as expected and provided above.
+  return tag('foreach_ids_table_value', `SELECT ${columns} FROM UNNEST(json_extract(${escapeString(JSON.stringify(jsonData))}, '$[*]')) _json_each(value)`)
 }
 
 /**
