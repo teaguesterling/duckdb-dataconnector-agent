@@ -3,6 +3,9 @@
 This directory contains an DuckDB implementation of a data connector agent.
 It can use local DuckDB database files as referenced by the "db" config field.
 
+This is a basically a SQLite to DuckDB replacement of 
+https://github.com/hasura/sqlite-dataconnector-agent.
+
 ## Capabilities
 
 The DuckDB agent currently supports an unknown set of capabilities. 
