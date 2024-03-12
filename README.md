@@ -1,9 +1,12 @@
-# Data Connector Agent for SQLite
+# Data Connector Agent for DuckDB
 
-This directory contains an SQLite implementation of a data connector agent.
-It can use local SQLite database files as referenced by the "db" config field.
+This directory contains an DuckDB implementation of a data connector agent.
+It can use local DuckDB database files as referenced by the "db" config field.
 
 ## Capabilities
+
+The DuckDB agent currently supports an unknown set of capabilities. 
+It's a direct drop-in replacement for the SQLite agent.
 
 The SQLite agent currently supports the following capabilities:
 
@@ -24,7 +27,7 @@ Note: You are able to get detailed metadata about the agent's capabilities by
 ## Requirements
 
 * NodeJS 16
-* SQLite `>= 3.38.0` or compiled in JSON support
+* DuckDB `>= 0.10.0` or compiled in JSON support
     * Required for the json_group_array() and json_group_object() aggregate SQL functions
     * https://www.sqlite.org/json1.html#jgrouparray
 * Note: NPM is used for the [TS Types for the DC-API protocol](https://www.npmjs.com/package/@hasura/dc-api-types)
@@ -46,8 +49,8 @@ echo src/**/*.ts | xargs -n1 echo | DB_READONLY=y entr -r npm run start
 ## Docker Build & Run
 
 ```
-> docker build . -t dc-sqlite-agent:latest
-> docker run -it --rm -p 8100:8100 dc-sqlite-agent:latest
+> docker build . -t dc-duckdb-agent:latest
+> docker run -it --rm -v db.duckdb:/db.duckdb -p 8100:8100 dc-sqlite-agent:latest
 ```
 
 You will want to mount a volume with your database(s) so that they can be referenced in configuration.

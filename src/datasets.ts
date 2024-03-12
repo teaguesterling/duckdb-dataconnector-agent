@@ -21,7 +21,7 @@ export async function cloneDataset(logger: SqlLogger, clone_name: string, body: 
 
   if (await fileIsReadable(templatePaths.dbFileTemplatePath)) {
     try {
-      await withConnection({ db: templatePaths.dbFileTemplatePath, explicit_main_schema: false, tables: [], meta: false }, defaultMode, logger, async db => {});
+      await withConnection({ db: templatePaths.dbFileTemplatePath, init: null, explicit_main_schema: false, tables: [], meta: false }, defaultMode, logger, async db => {});
     }
     catch {
       throw new Error("Dataset template is not a valid SQLite database!");
@@ -32,7 +32,7 @@ export async function cloneDataset(logger: SqlLogger, clone_name: string, body: 
 
   } else if (await fileIsReadable(templatePaths.sqlFileTemplatePath)) {
     const sql = await promises.readFile(templatePaths.sqlFileTemplatePath, { encoding: "utf-8" });
-    await withConnection({db: toPath, explicit_main_schema: false, tables: [], meta: false}, createDbMode, logger, async db => {
+    await withConnection({db: toPath, init: null, explicit_main_schema: false, tables: [], meta: false}, createDbMode, logger, async db => {
       await db.withTransaction(async () => {
         await db.exec(sql);
       });

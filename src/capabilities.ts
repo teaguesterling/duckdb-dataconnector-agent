@@ -85,7 +85,7 @@ const scalar_types: Record<ScalarTypeKey, ScalarTypeCapabilities> = {
 };
 
 export const capabilitiesResponse: CapabilitiesResponse = {
-  display_name: 'Hasura SQLite',
+  display_name: 'DuckDB Agent',
   // release_name: 'Beta',
   config_schemas: configSchema,
   capabilities: {
