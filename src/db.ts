@@ -36,7 +36,7 @@ export async function withConnection<Result>(config: Config, mode: number, sqlLo
     console.log("Connecting to", config.db, "with: ", config.init);
     // TODO: expand the logic from (read|create|cache)Mode above to fix this
     const access = config.db == ":memory:" ? "READ_WRITE" : "READ_ONLY";
-    const params = {"access_mode": "READ_WRITE"};
+    const params = {"access_mode": access};
     const db = new Database(config.db, params, conn_err => {
       if (conn_err) {
         reject(conn_err);
