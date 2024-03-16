@@ -59,7 +59,7 @@ export const configSchema: ConfigSchemaResponse = {
         default: false
       },
       tables: {
-        description: "List of tables to make available in the schema and for querying",
+        description: "List of tables to make available in the schema for querying",
         type: "array",
         items: { $ref: "#/other_schemas/TableName" },
         nullable: true
