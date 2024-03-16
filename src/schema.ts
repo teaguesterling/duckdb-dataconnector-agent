@@ -7,49 +7,143 @@ import { unreachable } from "./util";
 
 var sqliteParser = require('sqlite-parser');
 
-type TableInfoInternal = {
-  name: string,
-  type: string,
-  tbl_name: string,
-  rootpage: Number,
-  sql: string
-}
+const DUCKDB_SCHEMA_QUERY = `
+WITH 
+tables_and_views AS (
+  SELECT 
+      'VIEW' AS table_type, 
+      view_name AS table_name, 
+      view_oid AS table_oid,
+      "comment" AS table_comment,
+      * EXCLUDE (view_name, view_oid, "comment") 
+    FROM duckdb_views() 
+  UNION BY NAME 
+  SELECT 
+      'TABLE' AS table_type, 
+      "comment" AS table_comment,
+      * 
+    FROM duckdb_tables()
+  ),
+columns_with_types AS (
+  SELECT
+    * EXCLUDE ( 
+        data_type, data_type_id, 
+        "comment", "internal", 
+        database_name, schema_name, table_name 
+    ),
+    cols."comment" AS column_comment,
+    cols."internal" AS internal_column,
+    struct_pack(
+      type_name := cols.data_type,
+      type_ddl := cs.data_type,
+      logical_type := logical_type,
+      type_category := type_category
+    ) AS data_type
+  FROM duckdb_columns() AS cols
+  JOIN duckdb_types() AS types ON data_type_id=type_oid
+  JOIN information_schema.columns AS cs 
+    ON cols.database_name=cs.table_catalog
+    AND cols.schema_name=cs.table_schema
+    AND cols.table_name=cs.table_name
+    AND cols.column_name=cs.column_name
+)
+SELECT 
+  database_name,
+  schema_name,
+  table_name,
+  table_type,
+  table_comment,
+  "temporary" AS is_temporary,
+  "internal" AS internal_table,
+  has_primary_key,
+  list(struct_pack(
+    column_name := column_name,
+    internal_column := internal_column,
+    column_comment := column_comment,
+    is_nullable := is_nullable,
+    is_generated := is_generated,
+    data_type := data_type
+  )) AS table_columns
+FROM tables_and_views
+JOIN columns_with_types USING (database_oid, schema_oid, table_oid)
+GROUP BY ALL;
+`;
 
-type Datatype = {
-  affinity: string, // Sqlite affinity, lowercased
-  variant: string, // Declared type, lowercased
-}
+type TableTypeInternal = "TABLE" | "VIEW";
+
+type DataType = {
+  type_name: string,
+  logical_type: string,
+  type_category: string,
+  type_ddl: string
+};
+
+type NestedConstraintInfoInternal = {};
+
+type NestedColumnInfoInternal = {
+  column_name: string,
+  internal_column: boolean,
+  column_comment: string,
+  is_nullable: Number,
+  is_generated: Number,
+  data_type: DataType
+  //constraints: Array<NestedConstraintInfoInternal>
+};
+
+type TableInfoInternal = {
+  database_name: string,
+  schema_name: string,
+  table_name: string,
+  table_type: TableTypeInternal,
+  is_temporary: boolean,
+  internal_table: boolean,
+  table_comment: string,
+  has_primary_key: boolean,
+  table_columns: Array<NestedColumnInfoInternal>
+};
+
+
 
 // Note: Using ScalarTypeKey here instead of ScalarType to show that we have only used
 //       the capability documented types, and that ScalarTypeKey is a subset of ScalarType
-function determineScalarType(datatype: Datatype): ScalarTypeKey {
-  switch (datatype.variant) {
-    case "bool": return "bool";
-    case "boolean": return "bool";
-    case "datetime": return "DateTime";
-  }
-  switch (datatype.affinity) {
-    case "integer": return "number";
-    case "real": return "number";
-    case "numeric": return "number";
-    case "text": return "string";
+function determineScalarType(datatype: DataType): ScalarTypeKey {
+  switch (datatype.type_category) {
+    case "BOOLEAN": return "bool";
+    case "NUMERIC": return "number";
+    case "DATETIME": return "DateTime";
+    case "STRING": return "string";
     default:
-      console.log(`Unknown SQLite column type: ${datatype.variant} (affinity: ${datatype.affinity}). Interpreting as string.`);
+      console.warn(`Errors may occur due to non-standard type category: ${datatype}`);
+  }
+  switch(datatype.logical_type) {
+    case "LIST": return "string"; //TODO: Implement list handling
+    case "MAP": return "string"; // TODO: Implement map handling
+    case "STRUCT": return "string"; //TODO: Imelement struct handling
+    default:
+      console.error(`Unknown logical type encountered: ${datatype.logical_type}.`);
       return "string";
   }
 }
 
-function getColumns(ast: any[]) : ColumnInfo[] {
-  return ast.map(column => {
-    const isAutoIncrement = column.definition.some((def: any) => def.type === "constraint" && def.autoIncrement === true);
+function getColumns(cols: NestedColumnInfoInternal[], source: TableTypeInternal) : ColumnInfo[] {
+  return cols.map(column => {
+    //const isAutoIncrement = column.definition.some((def: any) => def.type === "constraint" && def.autoIncrement === true);
+    const isAutoIncrement = false; // TODO: determine if value is from sequence
+    const isGenerated = column.is_generated;
+    const isViewColumn = source == "VIEW";
+
+    const isVirtual = isViewColumn || isAutoIncrement || isGenerated;
 
     return {
-      name: column.name,
-      type: determineScalarType(column.datatype),
-      nullable: nullableCast(column.definition),
+      name: column.column_name,
+      type: determineScalarType(column.data_type),
+      nullable: column.is_nullable === null,
       insertable: MUTATIONS,
       updatable: MUTATIONS,
-      ...(isAutoIncrement ? { value_generated: { type: "auto_increment" } } : {})
+      ...(isVirtual ? 
+          { value_generated: { 
+              type: isAutoIncrement ? "auto_increment" : "default_value"} } 
+          : {})
     };
   })
 }
@@ -72,31 +166,32 @@ const formatTableInfo = (config: Config, detailLevel: DetailLevel): ((info: Tabl
 }
 
 const formatBasicTableInfo = (config: Config) => (info: TableInfoInternal): TableInfo => {
-  const tableName = config.explicit_main_schema ? ["main", info.name] : [info.name];
+  const name = config.explicit_main_schema ? ["main", info.table_name] : [info.table_name];
   return {
-    name: tableName,
+    name: name,
     type: "table"
   }
 }
 
 const formatEverythingTableInfo = (config: Config) => (info: TableInfoInternal): TableInfo => {
   const basicTableInfo = formatBasicTableInfo(config)(info);
-  const ast = sqliteParser(info.sql);
-  const columnsDdl = getColumnsDdl(ast);
-  const primaryKeys = getPrimaryKeyNames(ast);
-  const foreignKeys = ddlFKs(config, basicTableInfo.name, ast);
-  const primaryKey = primaryKeys.length > 0 ? { primary_key: primaryKeys } : {};
-  const foreignKey = foreignKeys.length > 0 ? { foreign_keys: Object.fromEntries(foreignKeys) } : {};
+  // TODO: Setup keys and such
+  //const ast = sqliteParser(info.sql);
+  //const columnsDdl = getColumnsDdl(ast);
+  //const primaryKeys = getPrimaryKeyNames(ast);
+  //const foreignKeys = ddlFKs(config, basicTableInfo.name, ast);
+  //const primaryKey = primaryKeys.length > 0 ? { primary_key: primaryKeys } : {};
+  //const foreignKey = foreignKeys.length > 0 ? { foreign_keys: Object.fromEntries(foreignKeys) } : {};
 
   return {
     ...basicTableInfo,
-    ...primaryKey,
-    ...foreignKey,
-    description: info.sql,
-    columns: getColumns(columnsDdl),
+    //...primaryKey,
+    //...foreignKey,
+    description: `${info.table_comment}`,
+    columns: getColumns(info.table_columns, info.table_type),
     insertable: MUTATIONS,
     updatable: MUTATIONS,
-    deletable: MUTATIONS,
+    deletable: MUTATIONS
   }
 }
 
@@ -105,7 +200,7 @@ const formatEverythingTableInfo = (config: Config) => (info: TableInfoInternal):
  * @returns true if the table is an SQLite meta table such as a sequence, index, etc.
  */
 function isMeta(table : TableInfoInternal) {
-  return table.type != 'table' || table.name === 'sqlite_sequence';
+  return table.internal_table || table.schema_name == "information_schema";
 }
 
 const includeTable = (config: Config, only_tables?: TableName[]) => (table: TableInfoInternal): boolean => {
@@ -120,7 +215,7 @@ const includeTable = (config: Config, only_tables?: TableName[]) => (table: Tabl
     ?.map(n => n[n.length - 1])
 
   if (config.tables || only_tables) {
-    return (config.tables ?? []).concat(filterForOnlyTheseTables ?? []).indexOf(table.name) >= 0;
+    return (config.tables ?? []).concat(filterForOnlyTheseTables ?? []).indexOf(table.table_name) >= 0;
   } else {
     return true;
   }
@@ -254,7 +349,7 @@ export async function getSchema(config: Config, sqlLogger: SqlLogger, schemaRequ
   return await withConnection(config, defaultMode, sqlLogger, async db => {
     const detailLevel = schemaRequest.detail_level ?? "everything";
 
-    const results = await db.query("SELECT * from sqlite_schema");
+    const results = await db.query(DUCKDB_SCHEMA_QUERY);
     const resultsT: TableInfoInternal[] = results as TableInfoInternal[];
     const filtered: TableInfoInternal[] = resultsT.filter(includeTable(config, schemaRequest?.filters?.only_tables));
     const result:   TableInfo[]         = filtered.map(formatTableInfo(config, detailLevel));
