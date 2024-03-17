@@ -28,12 +28,95 @@ GraphQL schemas for combinations of remote files and define relationships on the
 DuckDB as a processing engine.
 
 ### Example
-Consider the following schema (note the creation of a CSV file):
+Consider the following schema in `/data/sample.duckdb` (note the creation of a CSV file):
 ```sql
 COPY (FROM VALUES ('MSFT', 'Microsoft', 'Hayward'), ('APPL', 'Apple', 'San Francisco'), ('DATA', 'Tableau', 'San Jose') AS v(symbol, name, city) ) TO 'companies.csv';
 CREATE VIEW companies AS FROM read_csv_auto('companies.csv', header=true);
 CREATE VIEW holdings AS FROM 'https://duckdb.org/data/prices.parquet';
 CREATE VIEW weather AS SELECT column0 AS city, column4 as date, column1 as low, column2 as high, column3 as rainfall FROM read_csv('https://duckdb.org/data/weather.csv');
+```
+With the following Hasura Metadata:
+```json
+{
+  "resource_version": 93,
+  "metadata": {
+    "version": 3,
+    "sources": [
+      {
+        "name": "DuckDB Test",
+        "kind": "DuckDB",
+        "tables": [
+          {
+            "table": [
+              "companies"
+            ],
+            "array_relationships": [
+              {
+                "name": "Holdings",
+                "using": {
+                  "manual_configuration": {
+                    "column_mapping": {
+                      "symbol": "ticker"
+                    },
+                    "insertion_order": null,
+                    "remote_table": [
+                      "holdings"
+                    ]
+                  }
+                }
+              },
+              {
+                "name": "Weather",
+                "using": {
+                  "manual_configuration": {
+                    "column_mapping": {
+                      "city": "city"
+                    },
+                    "insertion_order": null,
+                    "remote_table": [
+                      "weather"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "table": [
+              "holdings"
+            ],
+            "object_relationships": [
+              {
+                "name": "Company",
+                "using": {
+                  "manual_configuration": {
+                    "column_mapping": {
+                      "ticker": "symbol"
+                    },
+                    "insertion_order": null,
+                    "remote_table": [
+                      "companies"
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "configuration": {
+          "template": null,
+          "timeout": null,
+          "value": {
+            "db": "/data/sample.duckdb",
+            "explicit_main_schema": false,
+            "include_sqlite_meta_tables": false,
+            "init": "SET file_search_path='/data';"
+          }
+        }
+      }
+    }
+  }
+}
 ```
 
 
