@@ -6,7 +6,7 @@ It can use local DuckDB database files as referenced by the "db" config field.
 This is a basically a SQLite to DuckDB replacement of 
 https://github.com/hasura/sqlite-dataconnector-agent.
 
-## Current Status (This does work)
+## Current Status
 
 The DuckDB agent is a functioning port of the SQLite DataConnect Agent to
 use DuckDB as a backend instead. Currently, it only works on DuckDB native 
@@ -14,7 +14,8 @@ tables, but provides functionality required for basic read-only usage.
 
 * [x] GraphQL Schema from Tables
 * [X] GraphQL Schema from Views
-* [x] GraphQL Schema from remotely accessed files 
+* [x] GraphQL Schema from remotely accessed files
+* [x] Preliminary support for nested types
 * [x] GraphQL Queries
 * [x] Relationships
 * [x] Aggregations
@@ -27,13 +28,19 @@ of DuckDB, the data does not even need to be present in DuckDB. This allows you 
 GraphQL schemas for combinations of remote files and define relationships on them, utilizing
 DuckDB as a processing engine.
 
+This will, eventually be updated to take advantage of DuckDB's exceptional OLAP capabilities, and
+can already perform some rapid aggregations in some instances. Further development will allow
+
 ### Example
-Consider the following schema in `/data/sample.duckdb` (note the creation of a CSV file):
+This pointless example demonstrates pulling and joining data externally as well as locally from multiple file formats
+Consider the following schema in `/data/sample.duckdb` (note the creation of a local JSON file):
 ```sql
-COPY (FROM VALUES ('MSFT', 'Microsoft', 'Hayward'), ('APPL', 'Apple', 'San Francisco'), ('DATA', 'Tableau', 'San Jose') AS v(symbol, name, city) ) TO 'companies.csv';
-CREATE VIEW companies AS FROM read_csv_auto('companies.csv', header=true);
+COPY (FROM VALUES ('MSFT', 'Microsoft', 'Hayward'), ('APPL', 'Apple', 'San Francisco'), ('DATA', 'Tableau', 'San Jose') AS v(symbol, name, city) ) TO 'companies.json';
+CREATE VIEW companies AS FROM 'companies.json';
 CREATE VIEW holdings AS FROM 'https://duckdb.org/data/prices.parquet';
-CREATE VIEW weather AS SELECT column0 AS city, column4 as date, column1 as low, column2 as high, column3 as rainfall FROM read_csv('https://duckdb.org/data/weather.csv');
+CREATE VIEW weather AS
+  SELECT column0 AS city, column4 as date, column1 as low, column2 as high, column3 as rainfall
+  FROM read_csv('https://duckdb.org/data/weather.csv');
 ```
 You will need to configure the following relationships manually (there is an example configuration export at the end of this page):
 ```
@@ -57,43 +64,11 @@ The following query is possible:
   }
 }
 ```
-
-
-Given this completly contrived DuckDB schema:
+Additionally, as long as the view schemas remain consistent, the definition of the view itself can be transparently changed within the DuckDB database or materialized as a table:
 ```
-CREATE VIEW log AS SELECT timestamp, run_id, status, message FROM '/data/logs/*.json';    
-CREATE VIEW raw_run AS SELECT run_id, instrument_id, field_id, value FROM '/data/raw/*.csv';
-CREATE VIEW historical_statistics AS
-  SELECT field_id, statistic, value
-  FROM read_parquet('/data/pq/*/*.parquet', hive_partitioning=true);
--- Let's assume instrument is defined in a different external datasource table
--- Let's also assume filed is defined in a different external datasource table
+DROP VIEW companies;
+CREATE TABLE companies AS FROM 'companies.json';
 ```
-
-We would be able to expose it via GraphQL (which will require us to define 
-the relationships manually) to perform some sort of a query like this (again, 
-asusuming instrument is already defined via instrument_id):
-```
-{
-   raw_run {
-      value
-      instrument {
-        type
-      }
-      logs(where: {timestamp: {_gt: <SOMETHING>}, status: {_eq: "error"}}) {
-         timestamp
-         message
-      }
-      field {
-        name
-        statistics(where: {statistic: {_eq: "7-day-max"}}) {
-          value
-        }
-      }
-   }
-}
-```
-Alas, until we gew views working, this is just a (fever) dream.
 
 ## Capabilities
 
@@ -103,10 +78,15 @@ It's a direct drop-in replacement for the SQLite agent.
 The DuckDB agent currently has tested support the following capabilities:
 
 * [x] GraphQL Schema from Tables
-* [X] GraphQL Schema from Views or Functions (TODO: killer feature)
+* [X] GraphQL Schema from Views
+* [ ] GraphQL Schema from Macros
+* [x] GraphQL Schema from remotely accessed files
+* [x] Preliminary support for nested types
+* [ ] Support for nested operators and nested types
 * [x] GraphQL Queries
 * [x] Relationships
 * [x] Aggregations
+* [ ] Query explains
 * [ ] Prometheus Metrics
 * [ ] Exposing Foreign-Key Information
 * [ ] Mutations
