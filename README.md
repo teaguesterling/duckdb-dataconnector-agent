@@ -35,7 +35,12 @@ can already perform some rapid aggregations in some instances. Further developme
 This pointless example demonstrates pulling and joining data externally as well as locally from multiple file formats
 Consider the following schema in `/data/sample.duckdb` (note the creation of a local JSON file):
 ```sql
-COPY (FROM VALUES ('MSFT', 'Microsoft', 'Hayward'), ('APPL', 'Apple', 'San Francisco'), ('DATA', 'Tableau', 'San Jose') AS v(symbol, name, city) ) TO 'companies.json';
+COPY (FROM VALUES
+  ('MSFT', 'Microsoft', 'Hayward'),
+  ('GOOG', 'Google', 'Hayward'),
+  ('APPL', 'Apple', 'San Francisco'),
+  ('DATA', 'Tableau', 'San Jose') AS v(symbol, name, city)
+) TO 'companies.json';
 CREATE VIEW companies AS FROM 'companies.json';
 CREATE VIEW holdings AS FROM 'https://duckdb.org/data/prices.parquet';
 CREATE VIEW weather AS
