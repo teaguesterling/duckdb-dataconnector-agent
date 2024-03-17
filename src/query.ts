@@ -945,7 +945,7 @@ export async function queryData(config: Config, sqlLogger: SqlLogger, request: Q
 export async function explain(config: Config, sqlLogger: SqlLogger, request: QueryRequest): Promise<ExplainResponse> {
   return await withConnection(config, defaultMode, sqlLogger, async db => {
     const q = query(request);
-    const result = await db.query(`EXPLAIN QUERY PLAN ${q}`);
+    const result = await db.query(`EXPLAIN ${q}`);
     return {
       query: q,
       lines: [ "", ...formatExplainLines(result as AnalysisEntry[])]
@@ -961,7 +961,8 @@ function formatExplainLines(items: AnalysisEntry[]): string[] {
     }
     return 2 + depth(lines[x].parent);
   }
-  return items.map(x => `${' '.repeat(depth(x.parent))}${x.detail}`)
+  //return items.map(x => `${' '.repeat(depth(x.parent))}${x.detail}`)
+  return items.map(x => x.detail)
 }
 
 type AnalysisEntry = {
