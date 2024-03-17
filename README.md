@@ -61,9 +61,16 @@ The following query is possible:
     shares
     company {
       name
-      weather(order_by: {date:desc}, limit: 1) {
+      weather(where: {rainfall: {_is_null: false}},
+        	    order_by: {date:desc}, limit: 1) { 
         date
-        low
+        rainfall
+      }
+      weather_aggregate {
+        aggregate {
+          max { high }
+          min { low }
+        }
       }
     }
   }
