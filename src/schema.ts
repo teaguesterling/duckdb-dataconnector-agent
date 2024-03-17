@@ -113,7 +113,7 @@ function determineScalarType(datatype: DataType): ScalarTypeKey {
     case "DATETIME": return "DateTime";
     case "STRING": return "string";
     default:
-      console.warn(`Errors may occur due to non-standard type category: ${datatype}`);
+      console.warn(`Errors may occur due to non-standard type category: ${datatype.type_category} for type ${datatype.type_ddl}`);
   }
   switch(datatype.logical_type) {
     case "LIST": return "string"; //TODO: Implement list handling
