@@ -13,17 +13,32 @@ use DuckDB as a backend instead. Currently, it only works on DuckDB native
 tables, but provides functionality required for basic read-only usage.
 
 * [x] GraphQL Schema from Tables
+* [X] GraphQL Schema from Views
+* [x] GraphQL Schema from remotely accessed files 
 * [x] GraphQL Queries
 * [x] Relationships
 * [x] Aggregations
 
-## Aim (This isn't supported yet)
+## Aim
 
-While this works for DuckDB datbases and internal tables, it will be most 
-valuable if it supports exposing diverse data formats from DuckDB via 
-parsers and views. The goal here would be:
+This DataConnector allows you to utilize DuckDB's broad array of data importers to expose
+common analytics file formats through GraphQL. Through the cleverness and type-safe schemas
+of DuckDB, the data does not even need to be present in DuckDB. This allows you to create
+GraphQL schemas for combinations of remote files and define relationships on them, utilizing
+DuckDB as a processing engine.
 
-Given this completly contrived DuckDB schema **This doesn't work yet**:
+### Example
+Consider the following schema (note the creation of a CSV file):
+```sql
+COPY (FROM VALUES ('MSFT', 'Microsoft', 'Hayward'), ('APPL', 'Apple', 'San Francisco'), ('DATA', 'Tableau', 'San Jose') AS v(symbol, name, city) ) TO 'companies.csv';
+CREATE VIEW companies AS FROM read_csv_auto('companies.csv', header=true);
+CREATE VIEW holdings AS FROM 'https://duckdb.org/data/prices.parquet';
+CREATE VIEW weather AS SELECT column0 AS city, column4 as date, column1 as low, column2 as high, column3 as rainfall FROM read_csv('https://duckdb.org/data/weather.csv');
+```
+
+
+
+Given this completly contrived DuckDB schema:
 ```
 CREATE VIEW log AS SELECT timestamp, run_id, status, message FROM '/data/logs/*.json';    
 CREATE VIEW raw_run AS SELECT run_id, instrument_id, field_id, value FROM '/data/raw/*.csv';
@@ -67,7 +82,7 @@ It's a direct drop-in replacement for the SQLite agent.
 The DuckDB agent currently has tested support the following capabilities:
 
 * [x] GraphQL Schema from Tables
-* [ ] GraphQL Schema from Views or Functions (TODO: killer feature)
+* [X] GraphQL Schema from Views or Functions (TODO: killer feature)
 * [x] GraphQL Queries
 * [x] Relationships
 * [x] Aggregations
