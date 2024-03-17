@@ -81,6 +81,14 @@ Additionally, as long as the view schemas remain consistent, the definition of t
 DROP VIEW companies;
 CREATE TABLE companies AS FROM 'companies.json';
 ```
+Or added into the `init` configuration of the connector (this is not a great way to do this, but it works):
+```
+{
+  ...
+  init: "CREATE TEMPORARY VIEW companies AS (FROM VALUES ('MSFT', 'Microsoft', 'Hayward'), ('GOOG', 'Google', 'Hayward'), ('APPL', 'Apple', 'San Francisco'), ('DATA', 'Tableau', 'San Jose') AS v(symbol, name, city) );"
+  ...
+}
+```
 
 ## Capabilities
 
