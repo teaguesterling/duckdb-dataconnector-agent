@@ -49,8 +49,9 @@ The following query is possible:
     shares
     company {
       name
-      weather {
-        min
+      weather(order_by: {date:desc}, limit: 1) {
+        date
+        low
       }
     }
   }
