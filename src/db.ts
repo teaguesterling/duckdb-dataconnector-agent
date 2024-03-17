@@ -56,7 +56,7 @@ export async function withConnection<Result>(config: Config, mode: number, sqlLo
 
   // NOTE: Avoiding util.promisify as this seems to be causing connection failures.
   const query = (query: string, params?: Record<string, unknown>): Promise<Array<any>> => {
-    console.log("DuckDB Query: ", query, params||null);
+    //console.debug("DuckDB Query: ", query, params||null);
     return new Promise((resolve, reject) => {
       /* Pass named params:
        * db.run("UPDATE tbl SET name = $name WHERE id = $id", {
@@ -70,7 +70,7 @@ export async function withConnection<Result>(config: Config, mode: number, sqlLo
       //db_.all(query, params || {}, (err: any, data: any) => {
       db_.all(query, (err: any, data: any) => {
         if (err) {
-          console.error("Query Error", err);
+          console.error("Query Error: ", err, " In Query: ", query);
           return reject(err);
         } else {
           resolve(data);
