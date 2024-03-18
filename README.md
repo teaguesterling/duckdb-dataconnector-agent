@@ -90,6 +90,14 @@ Or added into the `init` configuration of the connector (this is not a great way
 }
 ```
 
+Lastly, it's possible to use DuckDB's httpfs extension and an in-memory database to keep the database outside of the connector:
+```
+{
+  db: ":memory:",
+  init: "LOAD httpfs; ATTACH 'http://192.168.1.2:8080/chinook.duckdb'; set search_path='chinook,main'; CREATE OR REPLACE TEMPORARY VIEW companies AS FROM 'http://192.168.7.209:8082/companies.json';"
+}
+```
+
 ## Capabilities
 
 The DuckDB agent currently supports an unknown set of capabilities. 
